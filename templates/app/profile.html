@@ -1,0 +1,110 @@
+<!-- app/templates/app/profile.html -->
+{% extends 'app/base.html' %}
+
+{% block content %}
+    {% if user.is_authenticated %}
+        <!-- Profile content for authenticated users -->
+        <div class="profile-container">
+            <h2 class="profile-heading">Welcome, {{ user.username }}!</h2>
+            
+            <!-- Registration Details Section -->
+            <div class="registration-details card shadow-sm">
+                <h3>Your Registration Details:</h3>
+                <ul class="list-unstyled">
+                    <li><strong>Username:</strong> {{ user.username }}</li>
+                    <li><strong>Email:</strong> {{ user.email }}</li>
+                    <li><strong>Date Joined:</strong> {{ user.date_joined }}</li>
+                </ul>
+            </div>
+
+            <!-- Logout Section -->
+            <div class="logout-section text-center mt-4">
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn btn btn-danger btn-lg">Logout</button>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <!-- If the user is not authenticated -->
+        <div class="not-logged-in text-center">
+            <h2>You are not logged in.</h2>
+            <p>Already have an account? <a href="{% url 'login' %}">Login here</a></p>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Container Styles */
+    .profile-container {
+        max-width: 800px;
+        margin: 30px auto;
+        padding: 20px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Profile Heading */
+    .profile-heading {
+        text-align: center;
+        font-size: 2rem;
+        color: #007bff;
+        margin-bottom: 20px;
+    }
+
+    /* Registration Details Styling */
+    .registration-details {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .registration-details h3 {
+        color: #343a40;
+        margin-bottom: 15px;
+    }
+
+    .registration-details ul li {
+        font-size: 1.1rem;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+
+    .registration-details ul li strong {
+        color: #007bff;
+    }
+
+    /* Logout Button Styles */
+    .logout-btn {
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 1.2rem;
+        color: white;
+        background-color: #dc3545;
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+
+    .logout-btn:hover {
+        background-color: #c82333;
+    }
+
+    /* Small screen adjustments */
+    @media (max-width: 768px) {
+        .profile-container {
+            padding: 15px;
+        }
+
+        .profile-heading {
+            font-size: 1.5rem;
+        }
+
+        .registration-details ul li {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}

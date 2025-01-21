@@ -1,0 +1,235 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block title %}Buy Now{% endblock title %}
+{% block main-content %}
+<!-- Your styles and structure remain the same -->
+<style>
+  /* General Styling */
+  body {
+    background-color: #f4f4f4;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  /* Container */
+  .container {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-top: 30px;
+  }
+
+  /* Divider Styling */
+  hr.divider {
+    border-color: #e0e0e0;
+  }
+  
+  /* Card Styling */
+  .card-custom {
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background-color: #fafafa;
+  }
+  
+  .card-custom .card-body {
+    padding: 20px;
+  }
+  
+  /* Title and Product Styling */
+  .card-title {
+    color: #333;
+  }
+
+  .text-primary {
+    color: #3498db !important;
+  }
+
+  .text-success {
+    color: #27ae60 !important;
+  }
+  
+  .fw-bold {
+    font-weight: 700;
+  }
+
+  /* Button Styling */
+  .btn-outline-primary {
+    border: 1px solid #3498db;
+    color: #3498db;
+    background-color: transparent;
+  }
+
+  .btn-outline-primary:hover {
+    background-color: #3498db;
+    color: white;
+  }
+
+  .btn-warning {
+    background-color: #f39c12;
+    border-color: #f39c12;
+  }
+
+  .btn-warning:hover {
+    background-color: #e67e22;
+    border-color: #e67e22;
+  }
+  
+  /* Modal Customizations */
+  .modal-content {
+    border-radius: 8px;
+    background-color: #f7f7f7;
+  }
+
+  .modal-header {
+    background-color: #3498db;
+    color: white;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  .modal-body {
+    padding: 30px;
+    background-color: #fff;
+  }
+
+  /* Input Fields */
+  .form-control {
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #f7f7f7;
+    color: #555;
+  }
+
+  .form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    background-color: #fff;
+  }
+  
+  /* Small Text */
+  .small.text-muted {
+    color: #777;
+    font-size: 0.85rem;
+  }
+
+  /* Modal Inputs */
+  .form-check-input {
+    border-radius: 4px;
+    background-color: #f7f7f7;
+  }
+
+  .form-check-label {
+    color: #555;
+  }
+  
+</style>
+
+<div class="container">
+  <div class="row mt-5">
+    <!-- Order Summary Section -->
+    <div class="col-md-6">
+      <h4 class="mb-3" style="color: #333;">Order Summary</h4>
+      <hr class="divider">
+      <div class="card mb-3 shadow-sm card-custom">
+        <div class="card-body">
+          <h5 class="card-title">Products: 
+            <span class="text-primary">
+                {% for name in item_names %}
+                    {{ name }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </span>
+        </h5>
+            <ul>
+                {% for item in cart_items %}
+                    <li class="text-primary">{{ item.product_name }} (x{{ item.quantity }})</li>
+                {% endfor %}
+            </ul>
+            <p class="card-text fw-bold">Total Price: <span class="text-success">Rs. {{ total_price }}</span></p>
+        </div>
+    </div>
+    
+      <p class="small text-muted">
+        <strong>Terms and Conditions:</strong> Lorem ipsum dolor sit amet consectetur adipisicing elit. Mollitia, ullam saepe! Iure optio repellat dolor velit, minus rem. Facilis cumque neque numquam laboriosam, accusantium adipisci nisi nihil in et quis?
+      </p>
+    </div>
+
+    <!-- Shipping Address Section -->
+    <div class="col-md-5 offset-md-1">
+      <h4 class="mb-3" style="color: #333;">Select Shipping Address</h4>
+      <hr class="divider">
+      <form action="" method="POST" id="addressForm">
+        {% csrf_token %}
+        <!-- Address Card -->
+        <div id="addressList">
+          {% if addresses %}
+              {% for address in addresses %}
+                  <div class="card shadow-sm mb-3 card-custom" id="address{{ address.id }}">
+                      <div class="card-body">
+                          <h5 class="card-title">Delivery Hub</h5>
+                          <p class="card-text"><strong>Address:</strong> {{ address.address_line }}</p>
+                          <p class="card-text"><strong>Location:</strong> {{ address.city }}, {{ address.country }}</p>
+                          <div class="form-check">
+                              <input class="form-check-input" type="radio" name="address" id="address{{ address.id }}" value="{{ address.id }}" required>
+                              <label class="form-check-label fw-bold" for="address{{ address.id }}">
+                                  Select this address
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+              {% endfor %}
+          {% else %}
+              <p class="text-muted">No saved addresses. Please add one.</p>
+          {% endif %}
+      </div>
+      
+     <!-- Continue Button -->
+<div class="text-end">
+  <button type="submit" class="btn btn-warning px-4 fw-bold" id="continueBtn">Continue</button>
+</div>
+
+<!-- Modal for Order Confirmation -->
+<div class="modal fade" id="orderConfirmationModal" tabindex="-1" aria-labelledby="orderConfirmationLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderConfirmationLabel">Order Confirmation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Your Order has been placed successfully! Thank you for shopping with us.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <a href="{% url 'home' %}" class="btn btn-primary">Go to Home</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Include Bootstrap JS and CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.getElementById("continueBtn").addEventListener("click", function (event) {
+    event.preventDefault(); // Prevent default form submission
+
+    // Collect order details
+    var itemNames = [];
+    {% for name in item_names %}
+      itemNames.push("{{ name|escapejs }}");
+    {% endfor %}
+
+    var totalPrice = "{{ total_price }}";
+
+    // Show confirmation message
+    if (confirm("Your order has been placed!\n\nChoose an option:\n\nOK: Check Order\nCancel: Stay on Checkout Page")) {
+      // If user clicks "OK", redirect to orders.html with order details
+      var queryParams = "?items=" + encodeURIComponent(itemNames.join(", ")) + "&total=" + encodeURIComponent(totalPrice);
+      window.location.href = "/orders" + queryParams;  // Ensure 'orders' route exists in urls.py
+    }
+    // If user clicks "Cancel", they stay on the page
+  });
+</script>
+
+{% endblock main-content %}

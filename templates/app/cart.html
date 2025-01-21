@@ -1,0 +1,210 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block title %}Shopping Cart{% endblock %}
+
+{% block main-content %}
+<div class="container mt-5">
+    <div class="row">
+        <!-- Left Column: Shopping Cart Items -->
+        <div class="col-md-8">
+            <div class="cart-container">
+                <h2 class="text-center">Shopping Cart</h2>
+                <div id="cart-items">
+                    {% if cart_items %}
+                        {% for item in cart_items %}
+                            <div class="cart-item" data-item-id="{{ item.id }}">
+                                <div class="d-flex">
+                                    <img src="{% static 'Images/' %}{{ item.product_name }}" class="cart-img" alt="Product Image">
+                                    <div class="cart-item-details">
+                                        <p class="product-name">{{ item.product_name }}</p>
+                                        <div>
+                                            <span class="quantity-btn minus" data-item-id="{{ item.id }}">-</span>
+                                            <span class="quantity">{{ item.quantity }}</span>
+                                            <span class="quantity-btn plus" data-item-id="{{ item.id }}">+</span>
+                                        </div>
+                                        <p>Price: Rs. <span class="item-price">{{ item.price }}</span></p>
+                                    </div>
+                                    <button class="remove-item" data-item-id="{{ item.id }}">Remove</button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>Your cart is empty. Add products to your cart.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Cart Summary -->
+        <div class="col-md-4">
+            <div class="cart-summary">
+                <h3>Total Amount: Rs. <span class="total-price">{{ total_amount }}</span></h3>
+                <h4>Items: <span class="item-names">
+                    {% for item in cart_items %}
+                        {{ item.product_name }}.jpg{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </span></h4>
+                <button class="btn btn-primary" id="place-order-btn">Place Order</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $(".quantity-btn").click(function() {
+            var $button = $(this);
+            var $cartItem = $button.closest('.cart-item');
+            var itemId = $cartItem.data('item-id');
+            var $quantity = $cartItem.find('.quantity');
+            var $itemPrice = $cartItem.find('.item-price');
+            var currentQuantity = parseInt($quantity.text());
+            var pricePerItem = parseFloat($itemPrice.text()) / currentQuantity;
+
+            if ($button.hasClass('plus')) {
+                currentQuantity++;
+            } else if ($button.hasClass('minus') && currentQuantity > 1) {
+                currentQuantity--;
+            }
+
+            $quantity.text(currentQuantity);
+            var newPrice = currentQuantity * pricePerItem;
+            $itemPrice.text(newPrice.toFixed(2));
+
+            $.ajax({
+                url: "{% url 'update_cart' %}",
+                type: "POST",
+                data: {
+                    item_id: itemId,
+                    quantity: currentQuantity,
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                },
+                success: function(response) {
+                    $("#cart-items").html(response.cart_html);
+                    $(".total-price").html(response.total_amount);
+                    $(".item-names").html(response.item_names);
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error updating cart:', error);
+                }
+            });
+        });
+
+        $(".remove-item").click(function() {
+            var itemId = $(this).data("item-id");
+            $.ajax({
+                url: "{% url 'remove_item' %}",
+                type: "POST",
+                data: {
+                    item_id: itemId,
+                    csrfmiddlewaretoken: '{{ csrf_token }}',
+                },
+                success: function(response) {
+                    if (response.cart_html && response.total_amount !== undefined && response.item_names !== undefined) {
+                        $("#cart-items").html(response.cart_html);
+                        $(".total-price").html(response.total_amount);
+                        $(".item-names").html(response.item_names);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('Error removing item:', error);
+                }
+            });
+        });
+        $("#place-order-btn").click(function() {
+            window.location.href = "{% url 'checkout' %}";  // Ensure 'checkout' is the correct URL name in Django
+        });
+    });
+</script>
+
+<style>
+/* Cart Container Styling (Same as Total Price Box) */
+.cart-container {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Cart Summary (Total Price Box) */
+.cart-summary {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Individual Cart Items */
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background: white;
+    padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.cart-item img {
+    width: 80px;
+    height: 80px;
+    border-radius: 5px;
+    margin-right: 15px;
+}
+
+.cart-item-details {
+    flex-grow: 1;
+}
+
+.product-name {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Quantity Buttons */
+.quantity-btn {
+    cursor: pointer;
+    padding: 5px 10px;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    margin: 0 5px;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.quantity-btn:hover {
+    background-color: #ddd;
+}
+
+/* Remove Button (User-Friendly) */
+.remove-item {
+    background-color: #ff4c4c;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.remove-item:hover {
+    background-color: #e63946;
+}
+
+.remove-item:focus {
+    outline: none;
+    box-shadow: 0 0 5px rgba(255, 76, 76, 0.5);
+}
+
+/* Place Order Button */
+#place-order-btn {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+</style>
+{% endblock %}

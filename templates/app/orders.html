@@ -1,0 +1,85 @@
+{% extends 'app/base.html' %}
+{% block title %}Order Summary{% endblock %}
+
+{% block main-content %}
+<div class="container">
+  {% if error %}
+    <div style="color: red; font-weight: bold;">{{ error }}</div>
+  {% else %}
+    <h2>Order Summary</h2>
+    <p><strong>Items: </strong><span id="items"></span></p>
+    <p><strong>Quantities: </strong><span id="quantities"></span></p>
+    <p><strong>Total Price: </strong><span id="total"></span></p>
+
+    <!-- Order Completion Message -->
+    <div id="orderMessage" style="margin-top: 20px; font-weight: bold; color: green; display: none;">
+      🎉 Your order has been placed successfully!
+    </div>
+
+    <!-- Redirect to Home -->
+    <button id="goHome" style="margin-top: 10px; display: none;">Return to Home</button>
+  {% endif %}
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+  const itemsElement = document.getElementById('items');
+  const quantitiesElement = document.getElementById('quantities');
+  const totalElement = document.getElementById('total');
+
+  if (itemsElement && quantitiesElement && totalElement) {
+    console.log("Elements found in the DOM!");
+
+    // Retrieve query parameters from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const items = urlParams.get('items') || 'No items';
+    const quantities = urlParams.get('quantities') || 'No quantities';
+    const total = urlParams.get('total') || 'No total';
+    
+    // Log the values for debugging
+    console.log("Items:", items);
+    console.log("Quantities:", quantities);
+    console.log("Total:", total);
+
+    // Display the order details
+    itemsElement.innerText = decodeURIComponent(items);
+    quantitiesElement.innerText = decodeURIComponent(quantities);
+    totalElement.innerText = decodeURIComponent(total);
+
+    // Show order confirmation message
+    document.getElementById('orderMessage').style.display = "block";
+
+    // Show the "Go Home" button
+    const goHomeButton = document.getElementById('goHome');
+    goHomeButton.style.display = "block";
+
+    // Clear cart items in sessionStorage
+    sessionStorage.removeItem("cart");
+
+    // Send request to Django backend to clear the cart
+    fetch("/clear-cart/", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+        "Content-Type": "application/json"
+      }
+    }).then(response => response.json())
+      .then(data => console.log("Cart cleared:", data));
+
+    // Redirect to home page when button is clicked
+    goHomeButton.addEventListener("click", function () {
+      window.location.href = "/";
+    });
+
+    // Auto redirect after 5 seconds
+    setTimeout(() => {
+      window.location.href = "/";
+    }, 5000);
+  } else {
+    console.error("One or more elements not found in the DOM.");
+  }
+});
+
+</script>
+
+{% endblock %}

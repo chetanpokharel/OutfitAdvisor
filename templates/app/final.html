@@ -1,0 +1,111 @@
+{% extends 'app/base.html' %}
+{% load static %}
+{% block title %}Recommendations{% endblock title %}
+{% block main-content %}
+
+<div class="container my-4">
+    <style>
+        .product-container {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 25px;
+            width: 90%;
+            margin: auto;
+            padding-bottom: 10px;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            flex: 0 0 auto;
+            width: 220px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .product-card img {
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        .product-card:hover img {
+            transform: scale(1.05);
+        }
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        h2 {
+            font-size: 2rem;
+            color: #007bff;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+
+    <h2 class="text-center text-primary fw-bold mb-4">✨ Recommended Products ✨</h2>
+
+    <!-- Display the uploaded image -->
+    <div class="text-center mb-4">
+        <h3>Your Uploaded Image:</h3>
+        <img src="{{ uploaded_image_url }}" width="200px" height="200px" alt="Uploaded Image">
+    </div>
+
+    <!-- Display the recommended products -->
+    <div class="product-container">
+        {% for product in context %}
+        <div class="product-card">
+            <img width="200px" height="200px" src="{% static 'Images/'|add:product %}" alt="Recommended Image">
+            <h3>{{ product }}</h3>
+            <p>Price:Rs 200 {{ price }}</p>
+            <button class="btn add-to-cart" data-product="{{ product }}">Add to Cart</button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- jQuery for AJAX -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+    $(".add-to-cart").click(function() {
+        var productName = $(this).data("product");
+
+        $.ajax({
+            url: "{% url 'add_to_cart' %}",
+            type: "POST",
+            data: {
+                'product_name': productName,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'  // Add CSRF token
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert("Product added to cart!");
+                    $("#cart-count").text(response.cart_count);
+                } else {
+                    alert("Error: " + response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert("Error adding product to cart: " + error);
+            }
+        });
+    });
+});
+
+</script>
+
+{% endblock main-content %}
