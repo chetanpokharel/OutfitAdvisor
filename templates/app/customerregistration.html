@@ -1,139 +1,166 @@
-<form action="{% url 'cus_register' %}" method="post" novalidate class="shadow p-5">
-    {% csrf_token %}
-    
-    <!-- Username Field -->
-    <div class="mb-3">
-        <label for="username" class="form-label">Username</label>
-        <input type="text" name="username" class="form-control" id="username" required>
-        {% if form.username.errors %}
-            <div class="text-danger">
-                {% for error in form.username.errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Email Field -->
-    <div class="mb-3">
-        <label for="email" class="form-label">Email</label>
-        <input type="email" name="email" class="form-control" id="email" required>
-        {% if form.email.errors %}
-            <div class="text-danger">
-                {% for error in form.email.errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Phone Number Field -->
-    <div class="mb-3">
-        <label for="phone_number" class="form-label">Phone Number</label>
-        <input type="tel" name="phone_number" class="form-control" id="phone_number" required>
-        {% if form.phone_number.errors %}
-            <div class="text-danger">
-                {% for error in form.phone_number.errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Password Field -->
-    <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
-        <input type="password" name="password" class="form-control" id="password" required>
-        {% if form.password.errors %}
-            <div class="text-danger">
-                {% for error in form.password.errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Confirm Password Field -->
-    <div class="mb-3">
-        <label for="confirm_password" class="form-label">Confirm Password</label>
-        <input type="password" name="confirm_password" class="form-control" id="confirm_password" required>
-        {% if form.confirm_password.errors %}
-            <div class="text-danger">
-                {% for error in form.confirm_password.errors %}
-                    <p>{{ error }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Submit Button -->
-    <input type="submit" class="btn btn-primary mt-4" value="Register">
-    
-    <!-- Link to Login -->
-    <p><a href="{% url 'login' %}" class="text-primary">Login</a></p>
-</form>
-
-<!-- Embedded CSS -->
-<style>
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Registration</title>
+  <link rel="stylesheet" href="{% static 'app/css/style.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
     body {
-        font-family: Arial, sans-serif;
-        background-color: #f8f9fa;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #9face6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .register-container {
+      background-color: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+      text-align: left;
+      position: relative;
+    }
+    .form-group label {
+      font-size: 0.9rem;
+      color: #4A4A4A;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 65%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #999;
+    }
+    .password-strength {
+      margin-top: 5px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+    .weak { color: red; }
+    .strong { color: orange; }
+    .very-strong { color: green; }
+    .btn {
+      width: 100%;
+      padding: 0.8rem;
+      background-color: #74ebd5;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 1rem;
+    }
+    .btn:hover { background-color: #5ec5b5; }
+    .register-link { margin-top: 1rem; font-size: 0.9rem; }
+    .register-link a { color: #74ebd5; text-decoration: none; }
+    .register-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <h2>Customer Registration</h2>
+    <form method="POST" action="{% url 'customerregistration' %}" onsubmit="return validateForm()">
+      {% csrf_token %}
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" placeholder="Enter your username" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Enter your password" required onkeyup="checkPasswordStrength()">
+        <i class="fa fa-eye toggle-password" onclick="togglePassword('password', this)"></i>
+        <p id="password-strength" class="password-strength"></p>
+      </div>
+      <div class="form-group">
+        <label for="confirm_password">Confirm Password</label>
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
+        <i class="fa fa-eye toggle-password" onclick="togglePassword('confirm_password', this)"></i>
+        <p id="password-error" style="color: red; font-size: 0.9rem; display: none;">Passwords do not match</p>
+      </div>
+      <button type="submit" class="btn">Register</button>
+    </form>
+    <div class="register-link">
+      <p>Already have an account? <a href="{% url 'login_view' %}">Login</a></p>
+    </div>
+  </div>
+
+  <script>
+    function checkPasswordStrength() {
+      const password = document.getElementById("password").value;
+      const strengthText = document.getElementById("password-strength");
+
+      if (password.length < 6) {
+        strengthText.textContent = "Password must be at least 6 characters";
+        strengthText.className = "password-strength weak";
+      } else if (/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/.test(password)) {
+        strengthText.textContent = "Strong";
+        strengthText.className = "password-strength strong";
+      } else if (/^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{6,}$/.test(password)) {
+        strengthText.textContent = "Very Strong";
+        strengthText.className = "password-strength very-strong";
+      } else {
+        strengthText.textContent = "Weak";
+        strengthText.className = "password-strength weak";
+      }
     }
 
-    .shadow {
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-        background-color: #fff;
-        border-radius: 8px;
-        max-width: 400px;
-        width: 100%;
-        padding: 20px;
-        margin: 20px;
+    function validateForm() {
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirm_password").value;
+      const errorText = document.getElementById("password-error");
+
+      if (password.length < 6) {
+        alert("Password must be at least 6 characters long");
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        errorText.style.display = "block";
+        return false;
+      } else {
+        errorText.style.display = "none";
+      }
+      return true;
     }
 
-    .form-label {
-        font-weight: bold;
-        color: #333;
-    }
+    function togglePassword(inputId, icon) {
+      const inputField = document.getElementById(inputId);
 
-    .form-control {
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        padding: 10px;
-        width: 100%;
-        margin-top: 5px;
+      if (inputField.type === "password") {
+        inputField.type = "text";
+        icon.classList.remove("fa-eye");
+        icon.classList.add("fa-eye-slash");
+      } else {
+        inputField.type = "password";
+        icon.classList.remove("fa-eye-slash");
+        icon.classList.add("fa-eye");
+      }
     }
-
-    .btn-primary {
-        background-color: #007bff;
-        border: none;
-        padding: 10px 20px;
-        color: #fff;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-
-    .btn-primary:hover {
-        background-color: #0056b3;
-    }
-
-    p {
-        margin-top: 15px;
-        text-align: center;
-    }
-
-    .text-primary {
-        color: #007bff;
-        text-decoration: none;
-    }
-
-    .text-primary:hover {
-        text-decoration: underline;
-    }
-</style>
+  </script>
+</body>
+</html>

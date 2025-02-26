@@ -1,0 +1,156 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart{% endblock title %}
+
+{% block main-content %}
+<div class="container my-5">
+    <h1 class="text-center mb-5">🛒 Your Shopping Cart</h1>
+    <div class="row">
+        <!-- Cart Items Section -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h3 class="mb-4">Your Cart</h3>
+                    {% if cart_items %}
+                        {% for product in cart_items %}
+                        <div class="row align-items-center mb-4">
+                            <!-- Product Image -->
+                            <div class="col-md-3 text-center">
+                                <img src="{% static 'images/'|add:product %}" class="img-fluid img-thumbnail shadow-sm" height="150" width="150" alt="Product Image">
+                            </div>
+                            <!-- Product Details -->
+                            <div class="col-md-9">
+                                <h5 class="fw-bold">{{ product }}</h5>
+                                <p class="text-muted small">Description: This is a placeholder description for the product.</p>
+                                <!-- Quantity Selector -->
+                                <div class="d-flex align-items-center my-3">
+                                    <label for="quantity" class="me-3">Quantity:</label>
+                                    <button class="btn btn-outline-secondary btn-sm minus-cart" data-product="{{ product }}"><i class="fas fa-minus"></i></button>
+                                    <span id="quantity-{{ product }}" class="mx-3">1</span>
+                                    <button class="btn btn-outline-secondary btn-sm plus-cart" data-product="{{ product }}"><i class="fas fa-plus"></i></button>
+                                </div>
+                                <p class="fw-bold mb-0" id="price-{{ product }}">Rs. 110.00</p>
+                                <a href="{% url 'remove_from_cart' product %}" class="btn btn-danger btn-sm mt-2">Remove</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="alert alert-info text-center">
+                        <p>Your cart is empty. Start adding items to see them here!</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h3 class="mb-4">Order Summary</h3>
+                    <ul class="list-group">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Total Items
+                            <span id="total-items">{{ cart_items|length }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Subtotal
+                            <span id="subtotal">Rs. 110</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Shipping
+                            <span id="shipping">Rs. 70.00</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <strong>Total (incl. VAT)</strong>
+                            <strong id="total">Rs. 0.00</strong>
+                        </li>
+                    </ul>
+                    <div class="d-grid mt-4">
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'checkout' %}" class="btn btn-primary btn-lg mb-3">Place Order</a>
+                        {% else %}
+                        <a href="{% url 'login_view' %}?next={% url 'checkout' %}" class="btn btn-primary btn-lg mb-3">Place Order</a>
+                        {% endif %}
+                        <a href="{% url 'final' %}" class="btn btn-secondary btn-lg">View More Products</a>
+                        <a href="{% url 'clear_cart' %}" class="btn btn-danger btn-lg mt-2">Clear Cart</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const pricePerItem = 110; // Example price per item
+
+    // Function to update the cart summary
+    function updateSummary() {
+        let totalItems = 0;
+        let subtotal = 0;
+
+        // Loop through all the products to calculate the subtotal
+        document.querySelectorAll('[id^="quantity-"]').forEach(quantitySpan => {
+            const productName = quantitySpan.id.replace('quantity-', '');
+            const quantity = parseInt(quantitySpan.textContent);
+            totalItems += quantity;
+            subtotal += quantity * pricePerItem;
+        });
+
+        // Update the total items count
+        document.getElementById('total-items').textContent = totalItems;
+
+        // Update subtotal
+        document.getElementById('subtotal').textContent = `Rs. ${subtotal}`;
+
+        // Update total (including shipping)
+        const shipping = 70;
+        document.getElementById('total').textContent = `Rs. ${subtotal + shipping}`;
+    }
+
+    // Event listener for updating quantity
+document.querySelectorAll('.plus-cart, .minus-cart').forEach(button => {
+    button.addEventListener('click', function() {
+        const productName = this.getAttribute('data-product');
+        const quantitySpan = document.getElementById(`quantity-${productName}`);
+        const priceSpan = document.getElementById(`price-${productName}`);
+        const action = this.classList.contains('plus-cart') ? 'add' : 'subtract';
+
+        // Get current quantity
+        let currentQuantity = parseInt(quantitySpan.textContent);
+
+        if (action === 'add') {
+            currentQuantity += 1;
+        } else if (action === 'subtract' && currentQuantity > 1) {
+            currentQuantity -= 1;
+        }
+
+        // Update quantity and price
+        quantitySpan.textContent = currentQuantity;
+        priceSpan.textContent = `Rs. ${currentQuantity * pricePerItem}`;
+
+        // Update the session directly after each click
+        fetch("{% url 'update_cart' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                product_name: productName,
+                quantity: currentQuantity  // Sending updated quantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Optionally, update the summary
+            updateSummary();
+        })
+        .catch(error => console.error('Error updating cart:', error));
+    });
+});
+
+</script>
+
+{% endblock main-content %}

@@ -2,7 +2,6 @@
 {% load static %}
 {% block title %}Recommendations{% endblock title %}
 {% block main-content %}
-
 <div class="container my-4">
     <style>
         .product-container {
@@ -34,7 +33,11 @@
         .product-card:hover img {
             transform: scale(1.05);
         }
-        .btn {
+        .product-card h3 {
+            font-size: 1rem;
+            margin: 10px 0;
+        }
+        .product-card .btn {
             padding: 8px 12px;
             border: none;
             border-radius: 5px;
@@ -43,16 +46,24 @@
             cursor: pointer;
             transition: background-color 0.3s ease, transform 0.3s ease;
         }
-        .btn:hover {
+        .product-card .btn:hover {
             background-color: #0056b3;
             transform: scale(1.05);
         }
         h2 {
             font-size: 2rem;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
             color: #007bff;
             font-weight: bold;
             text-align: center;
             margin-bottom: 20px;
+        }
+        .product-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .product-container::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 4px;
         }
     </style>
 
@@ -66,46 +77,20 @@
 
     <!-- Display the recommended products -->
     <div class="product-container">
-        {% for product in context %}
-        <div class="product-card">
-            <img width="200px" height="200px" src="{% static 'Images/'|add:product %}" alt="Recommended Image">
-            <h3>{{ product }}</h3>
-            <p>Price:Rs 200 {{ price }}</p>
-            <button class="btn add-to-cart" data-product="{{ product }}">Add to Cart</button>
-        </div>
+        {% for image in context %}
+            <div class="product-card">
+                <img width="200px" height="200px" src="{% static 'images/'|add:image %}" alt="Recommended Image">
+                <h3>Product Name: {{ image }}</h3>
+                <h3>Price: Rs.110</h3>
+                <form method="POST" action="{% url 'add_to_cart' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_name" value="{{ image }}">
+                    <button type="submit" class="btn">Add to Cart</button>
+                </form>
+            </div>
         {% endfor %}
     </div>
+    
+    
 </div>
-
-<!-- jQuery for AJAX -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    $(document).ready(function() {
-    $(".add-to-cart").click(function() {
-        var productName = $(this).data("product");
-
-        $.ajax({
-            url: "{% url 'add_to_cart' %}",
-            type: "POST",
-            data: {
-                'product_name': productName,
-                'csrfmiddlewaretoken': '{{ csrf_token }}'  // Add CSRF token
-            },
-            success: function(response) {
-                if (response.success) {
-                    alert("Product added to cart!");
-                    $("#cart-count").text(response.cart_count);
-                } else {
-                    alert("Error: " + response.error);
-                }
-            },
-            error: function(xhr, status, error) {
-                alert("Error adding product to cart: " + error);
-            }
-        });
-    });
-});
-
-</script>
-
 {% endblock main-content %}
