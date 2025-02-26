@@ -2,11 +2,11 @@ import pickle
 import  tensorflow 
 import numpy as np
 from numpy.linalg import norm
-from   keras.api._v2.keras.applications.resnet50 import ResNet50,preprocess_input
+from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
 from sklearn.neighbors import NearestNeighbors
-from keras.api._v2.keras.preprocessing import image
-from keras.api._v2.keras import Sequential
-from keras.api._v2.keras.layers import GlobalMaxPooling2D
+from tensorflow.keras.preprocessing import image
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import GlobalMaxPooling2D
 import os
 import cv2
 

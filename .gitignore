@@ -1,0 +1,35 @@
+# Virtual environments
+env/
+venv/
+
+# Static and media files
+static/
+staticfiles/
+Media/
+fashion-dataset/
+shoppinglyx/
+
+# Database files
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Screenshots and large files
+Screenshots/
+shoppinglyx/embeddings.pkl

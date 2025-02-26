@@ -1,6 +1,10 @@
-from .forms import RegisterForm
 from django.shortcuts import render, redirect
-from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.core.files.storage import default_storage  # Import default_storage
+import logging
+import os
 import pickle
 import numpy as np
 from numpy.linalg import norm
@@ -9,253 +13,257 @@ from sklearn.neighbors import NearestNeighbors
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import GlobalMaxPooling2D
-import os
-from django.core.files.storage import default_storage
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login , logout
 from django.contrib import messages
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import AuthenticationForm
-from django.contrib.auth import login as auth_login
-from .models import Cart, Product
-from phonenumber_field.formfields import PhoneNumberField
-from django.http import HttpResponse
-from .forms import RegisterForm
-from django.contrib.auth.hashers import make_password
-from django.core.exceptions import ValidationError
-from django.shortcuts import render
-from .models import CartItem
+import json
 from django.http import JsonResponse
-from .models import Cart
-
-def add_to_cart(request):
-    if request.method == "POST":
-        product_name = request.POST.get('product_name')
-        if product_name:
-            cart_item, created = CartItem.objects.get_or_create(product_name=product_name)
-            if not created:
-                cart_item.quantity += 1  
-            cart_item.save()
-
-            cart_count = CartItem.objects.count()
-
-            return JsonResponse({"success": True, "cart_count": cart_count})
-        else:
-            return JsonResponse({"success": False, "error": "Invalid product"})
-    return JsonResponse({"success": False, "error": "Invalid request"}, status=400)
-
-def cart_view(request):
-    cart_items = CartItem.objects.all()
-    return render(request, "app/cart.html", {"cart_items": cart_items})
-
-def update_cart(request):
-    if request.method == 'POST':
-        item_id = request.POST['item_id']
-        quantity = int(request.POST['quantity'])
-
-        # Get the cart item by its ID and update the quantity
-        cart_item = CartItem.objects.get(id=item_id)
-        cart_item.quantity = quantity
-        cart_item.save()
-
-        # Recalculate the total amount for the cart and generate item names
-        total_amount = sum(item.price * item.quantity for item in CartItem.objects.filter(user=request.user))
-        item_names = ", ".join([item.product_name for item in CartItem.objects.filter(user=request.user)])
-
-        # Generate updated cart HTML to send back
-        cart_html = render_to_string('cart_items.html', {'cart_items': CartItem.objects.filter(user=request.user)})
-
-        return JsonResponse({
-            'cart_html': cart_html,
-            'total_amount': total_amount,
-            'item_names': item_names,
-        })
 
 
-def remove_item(request):
-    if request.method == 'POST':
-        item_id = request.POST.get('item_id')
-        try:
-            item = CartItem.objects.get(id=item_id)
-            item.delete()  # Remove the item from the cart
-        except CartItem.DoesNotExist:
-            return JsonResponse({"error": "Item not found"}, status=404)
+# Create a logger
+logger = logging.getLogger(__name__)
 
-        # Retrieve updated cart items and calculate total
-        cart_items = CartItem.objects.all()
-        total_amount = sum(item.price * item.quantity for item in cart_items)
-        item_names = ', '.join([item.product_name for item in cart_items])
+# Set the logging level
+logger.setLevel(logging.INFO)
 
-        # Return the updated cart HTML and total amount as part of the response
-        cart_html = render_to_string('app/cart_items.html', {'cart_items': cart_items})
-        return JsonResponse({
-            'cart_html': cart_html,
-            'total_amount': total_amount,
-            'item_names': item_names
-        })
-    return JsonResponse({"error": "Invalid request"}, status=400)
+# Create a file handler
+file_handler = logging.FileHandler('app.log')
+file_handler.setLevel(logging.INFO)
+
+# Create a console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+
+# Create a formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add the handlers to the logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 def home(request):
+    logger.info('Home page accessed')
     return render(request, 'app/home.html')
 
 def product_detail(request):
+    logger.info('Product detail page accessed')
     return render(request, 'app/productdetail.html')
 
-def check_login_status(request):
-    return JsonResponse({'is_logged_in': request.user.is_authenticated})
+def cart(request, product_name):
+    logger.info('Cart page accessed for product: %s', product_name)
+    context = {'product_name': product_name}
+    return render(request, 'app/cart.html', context)
+def add_to_cart(request):
+    # Initialize the cart if not already in the session
+    if 'cart_items' not in request.session:
+        request.session['cart_items'] = []
 
-def profile_page(request):
-    # Check if the user is logged in
-    if not request.user.is_authenticated:
-        # Clear the cart if the user is not logged in
-        Cart.objects.filter(user=None).delete()  # Or clear any cart data as needed
+    if request.method == 'POST':
+        # Add product to the cart
+        product_name = request.POST.get('product_name')
+        if product_name:
+            # Avoid duplicates by checking if the product is already in the cart
+            if product_name not in request.session['cart_items']:
+                request.session['cart_items'].append(product_name)
+                request.session.modified = True  # Mark session as modified to save changes
+                logger.info('Added product to cart: %s', product_name)
+        return redirect('add_to_cart')  # Redirect to the cart page after adding
 
-    # Add any other profile page context here
-    return render(request, 'app/profile.html')
+    elif request.method == 'GET':
+        # Render the cart page with cart items
+        cart_items = request.session.get('cart_items', [])
+        return render(request, 'app/addtocart.html', {'cart_items': cart_items})
+
+
 
 def buy_now(request):
+    logger.info('Buy now page accessed')
     return render(request, 'app/buynow.html')
 
+def profile(request):
+    logger.info('Profile page accessed')
+    return render(request, 'app/profile.html')
+
 def address(request):
+    logger.info('Address page accessed')
     return render(request, 'app/address.html')
 
+def orders(request):
+    logger.info('Orders page accessed')
+    return render(request, 'app/orders.html')
+
 def change_password(request):
+    logger.info('Change password page accessed')
     return render(request, 'app/changepassword.html')
 
 def mobile(request):
+    logger.info('Mobile page accessed')
     return render(request, 'app/mobile.html')
 
-def logout_view(request):
-    logout(request)  # Logs out the user and ends the session
-    return redirect('home,html')  # Redirect to the home page or wherever you want # Replace 'home' with your desired redirect URL after logout
-
-@login_required(login_url='login')  # Redirects to login if the user is not authenticated
-def place_order(request):
-     # Logic to display the place order page
-    cart_items = Cart.objects.filter(user=request.user, is_ordered=False)
-
-    # If the cart is empty, redirect the user back to the cart page
-    if not cart_items.exists():
-        return redirect('cart.html')  # Assuming you have a 'cart' page
-
-    return render(request, 'app/place_order.html', {'cart_items': cart_items})
-
-def Cus_register(request):
+def login_view(request):
     if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            # Get the cleaned data
-            username = form.cleaned_data['username']
-            email = form.cleaned_data['email']
-            phone_number = form.cleaned_data['phone_number']
-            password = form.cleaned_data['password']
-            
-            # Manually hash the password
-            hashed_password = make_password(password)
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        next_url = request.POST.get('next', 'home')  # Get next URL, default to 'home'
 
-            # Create the user with hashed password
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=hashed_password
-            )
-            
-            # Optionally, you can authenticate the user here and log them in
-            user = authenticate(username=username, password=password)  # Authenticate with raw password (not hashed)
-            if user is not None:
-                login(request, user)
+        user = authenticate(request, username=username, password=password)
 
-            # Redirect to the login page after successful registration
-            return redirect('login')  # Make sure 'login' is the correct path name
-    else:
-        form = RegisterForm()
+        if user is not None:
+            login(request, user)
+            logger.info(f'User {username} logged in successfully.')
+            return redirect(next_url)  # Redirect to the next URL
+        else:
+            messages.error(request, "❌ Invalid credentials. Please try again.")
+            return render(request, 'app/login.html', {'next': next_url})
+
     
-    return render(request, 'app/Cus_register.html', {'form': form})
+    next_url = request.GET.get('next', 'home')  # Get next URL, default to 'home'
+    logger.info('Login page accessed')
+    return render(request, 'app/login.html', {'next': next_url})
 
-def test_auth(request):
-    if request.user.is_authenticated:
-        return HttpResponse(f"User {request.user.username} is logged in.")
+
+def customerregistration(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match!")
+            return redirect('customerregistration')  # Redirect instead of render
+
+        try:
+            # Create user
+            user = User.objects.create_user(username=username, email=email, password=password)
+            user.save()
+
+            logger.info(f'New user registered: {username}')
+            messages.success(request, "Registration successful ✅  Please log in.")
+
+            return redirect('login_view')  # Redirect to login page
+
+        except Exception as e:
+            logger.error(f"Error during registration: {e}")
+            messages.error(request, "Error during registration! Please try again.")
+            return redirect('customerregistration')  # Redirect to avoid form resubmission
+
+    logger.info('Customer registration page accessed')
+    return render(request, 'app/customerregistration.html')
+
+def remove_from_cart(request, product_name):
+    # Ensure 'cart_items' exists in the session
+    if 'cart_items' in request.session:
+        cart_items = request.session['cart_items']
+        # Check if the product exists in the cart
+        if product_name in cart_items:
+            cart_items.remove(product_name)  # Remove the product
+            request.session['cart_items'] = cart_items  # Save updated cart
+            request.session.modified = True  # Mark session as modified
+            logger.info(f'Removed product from cart: {product_name}')
+        else:
+            logger.warning(f'Product {product_name} not found in cart')
     else:
-        return HttpResponse("User is not logged in.")
+        logger.warning('Cart is empty or does not exist in session')
 
-def some_protected_view(request):
-    return render(request, 'app/protected.html')
+    # Redirect back to the cart page
+    return redirect('add_to_cart')
 
-def checkout(request):
-    cart_items = CartItem.objects.all()
 
-    # Calculate total price
-    #total_price = sum(item.price * item.quantity for item in cart_items)
-
-    # Collect item names (product image names in JPG format)
-    item_names = [item.product_name for item in cart_items] 
-
-    delivery_hub = {
-        "name": "Delivery Hub",
-        "address": "Main Street, City Center",
-        "location": "Kathmandu, Nepal"
-         }   
+def update_cart(request):
     if request.method == "POST":
-        return redirect('home')  # Redirect after checkout
+        # Parse JSON data from the frontend
+        data = json.loads(request.body)
+        product_name = data.get('product_name')
+        quantity = data.get('quantity')
+
+        # Get cart and quantities from session
+        cart = request.session.get('cart_items', [])
+        cart_quantities = request.session.get('cart_quantities', {})
+
+        if product_name and quantity:
+            # Update the cart quantities in the session
+            cart_quantities[product_name] = quantity  # Store the updated quantity
+
+            # Save updated cart and quantities in session
+            request.session['cart_quantities'] = cart_quantities
+            request.session.modified = True
+
+            # Return updated summary
+            return JsonResponse({'status': 'success', 'cart_quantities': cart_quantities})
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+def checkout(request):
+    cart_items = request.session.get('cart_items', [])
+    cart_quantities = request.session.get('cart_quantities', {})
+    total_price = 0
+    items_with_details = []
+
+    for product in cart_items:
+        quantity = cart_quantities.get(product, 1)  # Default to 1 if no quantity found
+        price_per_item = 110  # Replace with your actual price logic
+        total_price += price_per_item * quantity
+        items_with_details.append({
+            'product': product,
+            'quantity': quantity,
+            'price': price_per_item * quantity
+        })
 
     return render(request, 'app/checkout.html', {
-        'cart_items': cart_items,
-        #'total_price': total_price,
-        'item_names': item_names,
-        'delivery_hub': delivery_hub,
+        'items_with_details': items_with_details,
+        'total_price': total_price,
+        'shipping': 70,
+        'grand_total': total_price + 70
     })
 
-def order_summary(request):
-    user = request.user
-    if user.is_authenticated:
-        # Clear the cart when checking the order summary
-        Cart.objects.filter(user=user).delete()  
 
-    # Retrieve the items and total from the request's query parameters
-    items = request.GET.get('items', '')
-    quantities = request.GET.get('quantities', '')
-    total_price = request.GET.get('total', '')
 
-    # Ensure that we have items, quantities, and total in the URL
-    if not items or not total_price:
-        error_message = "Missing order details"
-        return render(request, 'app/orders.html', {'error': error_message})
-
-    items_list = items.split(', ')
-    quantities_list = quantities.split(', ') if quantities else []
+def checkout(request):
     
-    # If quantities aren't passed, assume each item has quantity 1
-    if not quantities_list:
-        quantities_list = ['1'] * len(items_list)
+    cart_items = request.session.get('cart_items', [])
+    cart_quantities = request.session.get('cart_quantities', {})
+    prices = request.session.get('prices', {})
+    total_price = 0
+    items_with_details = []
 
-    context = {
-        'items': items_list,
-        'quantities': quantities_list,
+    for product in cart_items:
+        quantity = cart_quantities.get(product, 1)
+        price_per_item = prices.get(product, 110)  # Use the stored price or default to Rs. 110
+        total_price += price_per_item * quantity
+        items_with_details.append({
+            'product': product,
+            'quantity': quantity,
+            'price': price_per_item * quantity
+        })
+
+    return render(request, 'app/checkout.html', {
+        'items_with_details': items_with_details,
         'total_price': total_price,
-    }
-
-    return render(request, 'app/orders.html', context)
+        'shipping': 70,
+        'grand_total': total_price + 70
+    })
 
 def clear_cart(request):
-    if request.method == "POST":
-        # Get the current user (modify if using session-based cart)
-        user = request.user if request.user.is_authenticated else None
-
-        # Delete all cart items related to the user
-        Cart.objects.filter(user=user).delete()
-
-        return JsonResponse({"message": "Cart cleared successfully!"})
-    return JsonResponse({"error": "Invalid request"}, status=400)
+    """Clears all items from the shopping cart."""
+    if 'cart_items' in request.session:
+        request.session['cart_items'] = []  # Clear all items
+        request.session['cart_quantities'] = {}  # Clear all quantities if used
+        request.session.modified = True  # Mark session as modified
+    return redirect('add_to_cart')  # Redirect back to the cart page
 
 def index(request):
     if request.method == "POST" and request.FILES.get('upload'):
         upload = request.FILES['upload']
+        logger.info('Image uploaded successfully')
         return render(request, 'base.html', {'message': 'Image uploaded successfully'})
 
 def fetch(request):
     if request.method == "POST":
         if 'upload' not in request.FILES:
             err = 'No images Selected'
+            logger.error(err)
             return render(request, './app/final.html', {'err': err})
 
         upload = request.FILES['upload']
@@ -264,18 +272,17 @@ def fetch(request):
             for chunk in upload.chunks():
                 destination.write(chunk)
 
-        # Fixing the pickle file loading
         try:
             feature_list = np.array(pickle.load(open('./shoppinglyx/embeddings.pkl', 'rb')))
             filenames = pickle.load(open('./shoppinglyx/filenames.pkl', 'rb'))
         except Exception as e:
+            logger.error('Error loading pickle files: %s', e)
             return render(request, './app/final.html', {'err': f"Error loading pickle files: {e}"})
 
         model = ResNet50(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
         model.trainable = False
         model = Sequential([model, GlobalMaxPooling2D()])
 
-        # Process the uploaded image
         img = image.load_img(os.path.realpath(destination.name), target_size=(224, 224))
         img_array = image.img_to_array(img)
         expanded_img_array = np.expand_dims(img_array, axis=0)
@@ -283,7 +290,6 @@ def fetch(request):
         result = model.predict(preprocessed_img).flatten()
         normalized_result = result / norm(result)
 
-        # Find similar images using Nearest Neighbors
         neighbors = NearestNeighbors(n_neighbors=6, algorithm='brute', metric='euclidean')
         neighbors.fit(feature_list)
         distances, indices = neighbors.kneighbors([normalized_result])
@@ -294,10 +300,25 @@ def fetch(request):
             result_urls.append(image_name)
 
         uploaded_image_url = f"{settings.MEDIA_URL}{filename}"
+        logger.info('Image processed successfully')
+
+        # Store the result URLs in the session
+        request.session['uploaded_image_url'] = uploaded_image_url
+        request.session['recommended_images'] = result_urls
+        
 
         return render(request, './app/final.html', {'context': result_urls, 'uploaded_image_url': uploaded_image_url})
 
 def final(request):
-    return render(request, './app/final.html')
+    logger.info('Final page accessed')
 
+    # Retrieve the recommended images from session if available
+    uploaded_image_url = request.session.get('uploaded_image_url', '')
+    recommended_images = request.session.get('recommended_images', [])
+    
+    return render(request, './app/final.html', {'uploaded_image_url': uploaded_image_url,'context': recommended_images})
 
+def logout_view(request):
+    logger.info('User logged out')
+    logout(request)
+    return redirect('home')
